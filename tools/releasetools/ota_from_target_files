@@ -72,6 +72,10 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
       Do not generate recovery image. For devices which do not have a truly
       separate recovery partition.
 
+  --mount_by_label <boolean>
+      Force the OTA package to mount and format System by label
+      Can be enabled by defining TARGET_SETS_FSTAB. Defaults to false.
+
 """
 
 import sys
@@ -113,6 +117,7 @@ OPTIONS.backuptool = False
 OPTIONS.override_device = 'auto'
 OPTIONS.override_prop = False
 OPTIONS.no_separate_recovery = False
+OPTIONS.mount_by_label = False
 
 def MostPopularKey(d, default):
   """Given a dict, return the key corresponding to the largest
@@ -516,20 +521,22 @@ else if get_stage("%(bcb_dev)s", "stage") == "3/3" then
   script.Unmount("/data")
 
   if OPTIONS.backuptool:
-    script.Mount("/system")
+    script.Mount("/system", OPTIONS.mount_by_label)
     script.RunBackup("backup")
-    script.Unmount("/system")
+    if not OPTIONS.mount_by_label:
+      script.Unmount("/system")
 
   script.ShowProgress(0.5, 0)
 
   if OPTIONS.wipe_user_data:
-    script.FormatPartition("/data")
+    script.FormatPartition("/data", OPTIONS.mount_by_label)
 
   if "selinux_fc" in OPTIONS.info_dict:
     WritePolicyConfig(OPTIONS.info_dict["selinux_fc"], output_zip)
 
-  script.FormatPartition("/system")
-  script.Mount("/system")
+  script.FormatPartition("/system", OPTIONS.mount_by_label)
+  if not OPTIONS.mount_by_label:
+    script.Mount("/system")
   if not OPTIONS.no_separate_recovery:
     script.UnpackPackageDir("recovery", "/system")
   script.UnpackPackageDir("system", "/system")
@@ -731,7 +738,7 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
     metadata["pre-build"] = source_fp
     metadata["post-build"] = target_fp
 
-    script.Mount("/system")
+    script.Mount("/system", OPTIONS.mount_by_label)
     script.AssertSomeFingerprint(source_fp, target_fp)
 
   source_boot = common.GetBootableImage(
@@ -859,7 +866,7 @@ else
 
   if OPTIONS.wipe_user_data:
     script.Print("Erasing user data...")
-    script.FormatPartition("/data")
+    script.FormatPartition("/data", OPTIONS.mount_by_label)
 
   script.Print("Removing unneeded files...")
   script.DeleteFiles(["/"+i[0] for i in verbatim_targets] +
@@ -1038,6 +1045,8 @@ def main(argv):
       OPTIONS.override_prop = bool(a.lower() == 'true')
     elif o in ("--no_separate_recovery"):
       OPTIONS.no_separate_recovery = bool(a.lower() == 'true')
+    elif o in ("--mount_by_label"):
+      OPTIONS.mount_by_label = bool(a.lower() == 'true')
     else:
       return False
     return True
@@ -1057,6 +1066,7 @@ def main(argv):
                                               "override_device=",
                                               "override_prop=",
                                               "no_separate_recovery=",
+                                              "mount_by_label=",
                                               ],
                              extra_option_handler=option_handler)
 

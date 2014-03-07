@@ -211,6 +211,7 @@ $(INSTALLED_BUILD_PROP_TARGET): $(BUILDINFO_SH) $(INTERNAL_BUILD_ID_MAKEFILE) $(
 			TARGET_CPU_ABI2="$(TARGET_CPU_ABI2)" \
 			TARGET_AAPT_CHARACTERISTICS="$(TARGET_AAPT_CHARACTERISTICS)" \
 			TARGET_UNIFIED_DEVICE="$(TARGET_UNIFIED_DEVICE)" \
+			TARGET_SETS_FSTAB="$(TARGET_SETS_FSTAB)" \
 			$(PRODUCT_BUILD_PROP_OVERRIDES) \
 			BUILD_DISPLAY_ID="$(BUILD_DISPLAY_ID)" \
 			BUILD_NUMBER="$(BUILD_NUMBER)" \
@@ -1472,6 +1473,12 @@ ifneq ($(TARGET_NO_SEPARATE_RECOVERY),)
     $(INTERNAL_OTA_PACKAGE_TARGET): separate_recovery := --no_separate_recovery=true
 endif
 
+ifneq ($(TARGET_SETS_FSTAB),)
+    $(INTERNAL_OTA_PACKAGE_TARGET): mount_by_label := true
+else
+    $(INTERNAL_OTA_PACKAGE_TARGET): mount_by_label := false
+endif
+
 $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	@echo -e ${CL_YLW}"Package OTA:"${CL_RST}" $@"
 	MKBOOTIMG=$(BOARD_CUSTOM_BOOTIMG_MK) \
@@ -1480,6 +1487,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	   -k $(KEY_CERT_PAIR) \
 	   --backup=$(backuptool) \
 	   --override_device=$(override_device) \
+	   --mount_by_label=$(mount_by_label) \
 	   $(override_prop) \
 	   $(separate_recovery) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
